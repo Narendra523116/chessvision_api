@@ -5,7 +5,7 @@ from PIL import Image, UnidentifiedImageError
 from routes.segmentation import segment_chess_board
 from routes.detection import detect_pieces
 from routes.fen_generator import gen_fen
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -14,10 +14,6 @@ class DetectionResults(BaseModel):
     boxes: list
     confidences: list
     classes: list
-
-class FenRequest(BaseModel):
-    detections: DetectionResults
-    perspective: str
 
 @app.get("/")
 async def read_root():
@@ -92,36 +88,36 @@ async def get_coords(file: UploadFile = File(...)):
     
 
 @app.post("/getFen")
-async def get_fen(request: FenRequest):
-    results = request.detections
-    perspective = request.perspective
+async def get_fen(file : UploadFile = File(), perspective : str = "w" | "b"):
+
+    if perspective not in ["w" , "b"]:
+        return JSONResponse(content={"error" : "Perspective should be w (white) or b (black)"}, status_code=500)
+    
     try:
-        if perspective not in ["w", "b"]:
-            return JSONResponse(
-                content={"error": "Perspective must be 'w' (white) or 'b' (black)"},
-                status_code=400
-            )
+        image_content = await file.read()
+        if not image_content:
+            return JSONResponse(content={"error": "Empty file uploaded"}, status_code=400)
 
-        if not results.boxes or not results.confidences or not results.classes:
-            return JSONResponse(
-                content={"error": "Invalid input", "details": "Missing required fields"},
-                status_code=400
-            )
+        try:
+            image = Image.open(io.BytesIO(image_content))
+        except UnidentifiedImageError:
+            return JSONResponse(content={"error": "Invalid image format"}, status_code=400)
+
+        segmented_image = await segment_chess_board(image)
+        if isinstance(segmented_image, dict):
+            return JSONResponse(content=segmented_image, status_code=400)
+
+        segmented_image = segmented_image.resize((224, 224))
+
+        detection_results = await detect_pieces(segmented_image)
+        if "error" in detection_results:
+            return JSONResponse(content=detection_results, status_code=400)
         
-        print(results.model_dump())
-
-        fen = gen_fen(results.model_dump(), perspective)
-
+        fen = gen_fen(detection_results, perspective)
         if not fen:
-            return JSONResponse(
-                content={"error": "FEN generation failed", "details": "Invalid input data"},
-                status_code=500
-            )
+            return JSONResponse(content={"error": "FEN generation failed", "details": "Invalid input data"}, status_code=500)
 
         return JSONResponse(content={"FEN": fen}, status_code=200)
-
+    
     except Exception as e:
-        return JSONResponse(
-            content={"error": "Unexpected error occurred", "details": str(e)},
-            status_code=500
-        )
+        return JSONResponse(content={"error": "Unexpected error occurred", "details": str(e)}, status_code=500)
