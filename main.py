@@ -117,7 +117,7 @@ async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), nex
         if "error" in detection_results:
             return JSONResponse(content=detection_results, status_code=400)
         
-        fen = gen_fen(detection_results, perspective)
+        fen = gen_fen(detection_results, perspective, next_to_move)
         if not fen:
             return JSONResponse(content={"error": "FEN generation failed", "details": "Invalid input data"}, status_code=500)
 
