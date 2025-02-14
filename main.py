@@ -88,10 +88,14 @@ async def get_coords(file: UploadFile = File(...)):
     
 
 @app.post("/getFen")
-async def get_fen(file : UploadFile = File(), perspective : str = "w" | "b"):
+async def get_fen(file : UploadFile = File(), perspective : str = "w", next_to_move : str = "w"):
 
     if perspective not in ["w" , "b"]:
         return JSONResponse(content={"error" : "Perspective should be w (white) or b (black)"}, status_code=500)
+    
+    if perspective not in ["w" , "b"]:
+        return JSONResponse(content={"error" : "Perspective should be w (white) or b (black)"}, status_code=500)
+    
     
     try:
         image_content = await file.read()

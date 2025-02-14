@@ -41,7 +41,7 @@ def get_grid_coordinate(pixel_x, pixel_y, perspective):
         print(f"Error in get_grid_coordinate: {e}")
         return None  
 
-def gen_fen(result: dict, p: str):
+def gen_fen(result: dict, p: str, next_to_move : str):
     try:
         if not isinstance(result, dict):
             print("Error: Expected a dictionary for result")
@@ -107,7 +107,10 @@ def gen_fen(result: dict, p: str):
                 fen_row += str(empty_count)
             fen_rows.append(fen_row)  # FIXED: Ensured last row is added
 
-        return "/".join(fen_rows)
+        position_fen = "/".join(fen_rows)
+        fen_notation = f"{position_fen}{next_to_move} - - 0 0"
+
+        return fen_notation
 
     except Exception as e:
         print(f"Error in gen_fen: {e}")
