@@ -110,7 +110,7 @@ def gen_fen(result: dict, p: str, next_to_move : str):
         position_fen = "/".join(fen_rows)
         fen_notation = f"{position_fen}{next_to_move} - - 0 0"
 
-        return fen_piece
+        return fen_notation
 
     except Exception as e:
         print(f"Error in gen_fen: {e}")
