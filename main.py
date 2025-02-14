@@ -1,5 +1,5 @@
 import io
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image, UnidentifiedImageError
 from routes.segmentation import segment_chess_board
@@ -88,7 +88,7 @@ async def get_coords(file: UploadFile = File(...)):
     
 
 @app.post("/getFen")
-async def get_fen(file : UploadFile = File(), perspective : str = "w", next_to_move : str = "w"):
+async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), next_to_move : str = Form("w")):
 
     if perspective not in ["w" , "b"]:
         return JSONResponse(content={"error" : "Perspective should be w (white) or b (black)"}, status_code=500)
