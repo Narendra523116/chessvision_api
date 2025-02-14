@@ -108,7 +108,7 @@ def gen_fen(result: dict, p: str, next_to_move : str):
             fen_rows.append(fen_row)  # FIXED: Ensured last row is added
 
         position_fen = "/".join(fen_rows)
-        fen_notation = f"{position_fen}{next_to_move} - - 0 0"
+        fen_notation = f"{position_fen} {next_to_move} - - 0 0"
 
         return fen_notation
 

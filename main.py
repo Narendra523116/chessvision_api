@@ -1,5 +1,5 @@
 import io
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image, UnidentifiedImageError
 from routes.segmentation import segment_chess_board
@@ -88,15 +88,15 @@ async def get_coords(file: UploadFile = File(...)):
     
 
 @app.post("/getFen")
-async def get_fen(file : UploadFile = File(), perspective : str = "w", next_to_move : str = "w"):
+async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), next_to_move : str = Form("w")):
 
     if perspective not in ["w" , "b"]:
         return JSONResponse(content={"error" : "Perspective should be w (white) or b (black)"}, status_code=500)
     
-    if perspective not in ["w" , "b"]:
-        return JSONResponse(content={"error" : "Perspective should be w (white) or b (black)"}, status_code=500)
+    if next_to_move not in ["w" , "b"]:
+        return JSONResponse(content={"error" : "next to move should be w (white) or b (black)"}, status_code=500)
     
-    
+
     try:
         image_content = await file.read()
         if not image_content:
@@ -117,7 +117,7 @@ async def get_fen(file : UploadFile = File(), perspective : str = "w", next_to_m
         if "error" in detection_results:
             return JSONResponse(content=detection_results, status_code=400)
         
-        fen = gen_fen(detection_results, perspective)
+        fen = gen_fen(detection_results, perspective, next_to_move)
         if not fen:
             return JSONResponse(content={"error": "FEN generation failed", "details": "Invalid input data"}, status_code=500)
 
