@@ -140,6 +140,7 @@ async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), nex
     
 @app.post('/getReview')
 async def getReview(file: UploadFile = File(...)):  
+    print(os.getcwd())
     print("call recieved")
 
     if not file.filename.endswith(".pgn"):
@@ -152,14 +153,14 @@ async def getReview(file: UploadFile = File(...)):
             tmp_file_path = tmp_file.name
 
         # Analyze the PGN file
-        analysis_result = await analyze_pgn(tmp_file_path)
+        analysis_result = analyze_pgn(tmp_file_path)
 
         # Clean up the temporary file
         os.remove(tmp_file_path)
 
         if not analysis_result:
             return JSONResponse(content={"error": "No game found in the PGN file"}, status_code=400)
-        
-        return JSONResponse(content=analysis_result, status_code=200)
+        return analysis_result
+    
     except Exception as e:
         return  JSONResponse(content={"error": "Unexpected error occurred", "details": str(e)}, status_code=500)
