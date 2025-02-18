@@ -1,12 +1,24 @@
 import io
+import os
+import tempfile
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image, UnidentifiedImageError
 from routes.segmentation import segment_chess_board
 from routes.detection import detect_pieces
 from routes.fen_generator import gen_fen
+from routes.chess_review import analyze_pgn
 from typing import List, Dict, Any, Union
 from pydantic import BaseModel
+import asyncio
+import sys
+import tracemalloc
+tracemalloc.start()
+
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 
 app = FastAPI()
 
@@ -125,3 +137,29 @@ async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), nex
     
     except Exception as e:
         return JSONResponse(content={"error": "Unexpected error occurred", "details": str(e)}, status_code=500)
+    
+@app.post('/getReview')
+async def getReview(file: UploadFile = File(...)):  
+    print("call recieved")
+
+    if not file.filename.endswith(".pgn"):
+        return JSONResponse(content={"error": "Invalid file format. Please upload a PGN file"}, status_code=400)
+      
+    try:
+        # Save the uploaded file to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pgn") as tmp_file:
+            tmp_file.write(await file.read())
+            tmp_file_path = tmp_file.name
+
+        # Analyze the PGN file
+        analysis_result = await analyze_pgn(tmp_file_path)
+
+        # Clean up the temporary file
+        os.remove(tmp_file_path)
+
+        if not analysis_result:
+            return JSONResponse(content={"error": "No game found in the PGN file"}, status_code=400)
+        
+        return JSONResponse(content=analysis_result, status_code=200)
+    except Exception as e:
+        return  JSONResponse(content={"error": "Unexpected error occurred", "details": str(e)}, status_code=500)
