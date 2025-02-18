@@ -6,6 +6,7 @@ from typing import List, Dict
 import asyncio
 import json
 import sys
+import os
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
@@ -37,8 +38,8 @@ def load_opening_book(csv_path):
     return opening_book
 
 
-engine_path = r"D:\venv\chess-vision\code\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe"
-csv_path = r"D:\venv\chess-vision\code\openings_master.csv"
+engine_path = os.path.join(os.getcwd(), "models", "stockfish_14_x64_avx2.exe")
+csv_path = os.path.join(os.getcwd(), "assets", "opening_book.csv")
 opening_book = load_opening_book(csv_path)
 
 
