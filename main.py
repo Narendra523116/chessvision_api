@@ -4,6 +4,7 @@ import tempfile
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from PIL import Image, UnidentifiedImageError
+import uvicorn
 from routes.segmentation import segment_chess_board
 from routes.detection import detect_pieces
 from routes.fen_generator import gen_fen
@@ -13,6 +14,9 @@ from pydantic import BaseModel
 import asyncio
 import sys
 import tracemalloc
+from fastapi import requests
+import gradio as gr
+
 tracemalloc.start()
 
 
@@ -26,6 +30,7 @@ class DetectionResults(BaseModel):
     boxes: list
     confidences: list
     classes: list
+
 
 @app.get("/test")
 async def read_root():
@@ -101,3 +106,7 @@ async def getReview(file: UploadFile = File(...)):
     
     except Exception as e:
         return  JSONResponse(content={"error": "Unexpected error occurred", "details": str(e)}, status_code=500)
+    
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7860)
