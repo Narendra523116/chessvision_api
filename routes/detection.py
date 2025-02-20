@@ -1,6 +1,10 @@
 from ultralytics import YOLO
 from PIL import Image
-detect_model = YOLO(r'D:\venv\chess-vision\models\chessDetection3d.pt')
+import os 
+
+curr = os.getcwd()
+detect_model_path = os.path.join(curr, 'models', 'chessDetection3d.pt')
+detect_model = YOLO(detect_model_path)
 
 async def detect_pieces(image : Image):
     if image is None:

@@ -1,7 +1,11 @@
 from ultralytics import YOLO
 from PIL import Image
+import os
 
-seg_model = YOLO(r'D:\venv\chess-vision\models\SegModel (1).pt')
+curr = os.getcwd()
+seg_model_path = os.path.join(curr, 'models', 'SegModel (1).pt')
+
+seg_model = YOLO(seg_model_path)
 
 async def segment_chess_board(image : Image):
     if image is None:
