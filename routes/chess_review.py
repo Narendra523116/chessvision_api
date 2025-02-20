@@ -180,7 +180,7 @@ def analyze_pgn(pgn_file: str) -> Dict:
             board.push(move)
             
             # Analyze position after the move
-            post_info = engine.analyse(board, chess.engine.Limit(depth=20))
+            post_info = engine.analyse(board, limit = chess.engine.Limit(time = 0.3))
             post_eval = post_info["score"].white().score(mate_score=10000) or 0
             
             # Determine game phase
