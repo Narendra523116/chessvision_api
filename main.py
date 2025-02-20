@@ -27,7 +27,7 @@ class DetectionResults(BaseModel):
     confidences: list
     classes: list
 
-@app.get("/")
+@app.get("/test")
 async def read_root():
     return {
         "name": "Narendra",
