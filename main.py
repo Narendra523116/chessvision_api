@@ -15,7 +15,6 @@ import asyncio
 import sys
 import tracemalloc
 from fastapi import requests
-import gradio as gr
 
 tracemalloc.start()
 
