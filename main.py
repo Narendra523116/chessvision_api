@@ -15,6 +15,7 @@ import asyncio
 import sys
 import tracemalloc
 from fastapi import requests
+import base64
 
 tracemalloc.start()
 
@@ -29,6 +30,9 @@ class DetectionResults(BaseModel):
     boxes: list
     confidences: list
     classes: list
+
+class FileUpload(BaseModel):
+    file_data : str
 
 
 @app.get("/test")
@@ -80,17 +84,17 @@ async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), nex
         return JSONResponse(content={"error": "Unexpected error occurred", "details": str(e)}, status_code=500)
     
 @app.post('/getReview')
-async def getReview(file: UploadFile = File(...)):  
+async def getReview(file_upload: FileUpload):  
     print(os.getcwd())
     print("call recieved")
 
-    if not file.filename.endswith(".pgn"):
-        return JSONResponse(content={"error": "Invalid file format. Please upload a PGN file"}, status_code=400)
-      
+    if not file_upload.file_data:
+        return JSONResponse(content={"error": "Empty file uploaded"}, status_code=400)
     try:
+        file_data = base64.b64decode(file_upload.file_data)
         # Save the uploaded file to a temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pgn") as tmp_file:
-            tmp_file.write(await file.read())
+            tmp_file.write(file_data)
             tmp_file_path = tmp_file.name
 
         # Analyze the PGN file
