@@ -7,7 +7,8 @@ import re
 def review_chess_game(pgn_file_path):
     # Load environment variables and initialize Groq client
     load_dotenv()
-    API_KEY = "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"
+    API_KEY = os.getenv("GROQ_API_KEY")
+    
     if not API_KEY:
         raise ValueError("API key not found. Please set GROQ_API_KEY in the .env file.")
     client = Groq(api_key=API_KEY)
