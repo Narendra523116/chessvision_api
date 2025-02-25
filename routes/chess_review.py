@@ -9,8 +9,14 @@ from datetime import datetime
 import csv
 import json
 from fastapi.responses import JSONResponse
+import asyncio
+import sys
+from routes.tex_based_review import review_chess_game, validate_json
 
-app = FastAPI()
+
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 class GamePhase(Enum):
     OPENING = "opening"
@@ -147,6 +153,7 @@ book_csv_path = os.path.join(os.getcwd(), "assets", "openings_master.csv")
 
 def analyze_pgn(pgn_file: str) -> Dict:
     opening_book = load_opening_book(book_csv_path)
+    text_based_result = review_chess_game(pgn_file)
     
     with open(pgn_file) as pgn:
         game = chess.pgn.read_game(pgn)
@@ -157,7 +164,8 @@ def analyze_pgn(pgn_file: str) -> Dict:
     result = {
         "move_analysis": [],
         "phase_analysis": {},
-        "player_summaries": {}
+        "player_summaries": {},
+        "test_based_review": text_based_result
     }
     
     with chess.engine.SimpleEngine.popen_uci(engine_path) as engine:
@@ -171,18 +179,30 @@ def analyze_pgn(pgn_file: str) -> Dict:
 
         for move_number, node in enumerate(game.mainline(), start=1):
             # Analyze position before the move
-            pre_info = engine.analyse(board, chess.engine.Limit(depth=20))
+            pre_info = engine.analyse(board, chess.engine.Limit(time=0.3), multipv=3)[0]
+
             pre_eval = pre_info["score"].white().score(mate_score=10000) or 0
-            best_move = pre_info.get("pv", [None])[0]
+
+            pre_pv_moves = pre_info.get("pv", [])
             
-            # Make the move
+            # Get best move and follow-up moves in UCI notation
+            best_move_pre = pre_pv_moves[0].uci() if pre_pv_moves else None
+            follow_up_pre = [m.uci() for m in pre_pv_moves[:min(len(pre_pv_moves), 5)]]
+
+            # Make the user move
             move = node.move
-            board.push(move)
-            
+            board.push(move)  # Update the board state
+
             # Analyze position after the move
-            post_info = engine.analyse(board, limit = chess.engine.Limit(time = 0.3))
+            post_info = engine.analyse(board, chess.engine.Limit(time=0.3), multipv=3)[0]
+
+            # Get best move and follow-up moves AFTER move is played (in UCI notation)
+            post_pv_moves = post_info.get("pv", [])
+            best_move_post = post_pv_moves[0].uci() if post_pv_moves else None
+            follow_up_post = [m.uci() for m in post_pv_moves[:min(len(post_pv_moves), 5)]]
+
             post_eval = post_info["score"].white().score(mate_score=10000) or 0
-            
+
             # Determine game phase
             book_move = is_book_move(board, opening_book)
             current_phase = detect_game_phase(board, in_opening)
@@ -191,7 +211,7 @@ def analyze_pgn(pgn_file: str) -> Dict:
 
             # Calculate evaluation loss
             eval_loss = abs(pre_eval - post_eval)
-            
+
             # Initial classification
             classification = Classification.BOOK if book_move else None
             if not classification:
@@ -205,7 +225,7 @@ def analyze_pgn(pgn_file: str) -> Dict:
             # Check for missed opportunities
             is_winning = abs(pre_eval) >= FORCED_WIN_THRESHOLD
             is_forced_win = pre_info["score"].is_mate() and pre_info["score"].relative.mate() <= MISS_MATE_THRESHOLD
-            if is_winning and move != best_move and (eval_loss >= MISS_CENTIPAWN_LOSS or is_forced_win):
+            if is_winning and move != best_move_pre and (eval_loss >= MISS_CENTIPAWN_LOSS or is_forced_win):
                 classification = Classification.MISS
 
             # Check for brilliant moves
@@ -220,14 +240,18 @@ def analyze_pgn(pgn_file: str) -> Dict:
             classifications[player][current_phase].append(classification)
             phase_data[current_phase].append(classification)
 
-            # Add move analysis to result
+            # Add move analysis to result (using UCI notation)
             result["move_analysis"].append({
                 "move_number": move_number,
                 "player": "White" if board.turn == chess.BLACK else "Black",
-                "move": move.uci(),
+                "user_move": move.uci(),
                 "evaluation": post_eval / 100,
                 "evaluation_loss": eval_loss / 100,
-                "classification": classification.value
+                "classification": classification.value,
+                "best_move_pre": best_move_pre,  # Best move BEFORE move is played (UCI)
+                "follow_up_pre": follow_up_pre,  # Follow-up moves BEFORE move is played (UCI)
+                "best_move_post": best_move_post,  # Best move AFTER move is played (UCI)
+                "follow_up_post": follow_up_post  # Follow-up moves AFTER move is played (UCI)
             })
 
         # Phase analysis
@@ -248,7 +272,8 @@ def analyze_pgn(pgn_file: str) -> Dict:
             for phase in GamePhase:
                 phase_moves = classifications[color][phase]
                 for m in phase_moves:
-                    counts[m.value] += 1
+                    m_enum = Classification(m) if isinstance(m, str) else m  # Convert if needed
+                    counts[m_enum.value] += 1
             
             result["player_summaries"][player] = counts
 
@@ -267,8 +292,11 @@ def analyze_pgn(pgn_file: str) -> Dict:
 
 
 def get_phase_rating(classified_moves: List[Classification]) -> Classification:
+
     if not classified_moves:
         return Classification.GOOD
+
+    classified_moves = [Classification(m) if isinstance(m, str) else m for m in classified_moves]
         
     total = sum(classification_values[m] for m in classified_moves)
     average = total / len(classified_moves)

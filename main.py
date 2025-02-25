@@ -85,6 +85,7 @@ async def get_fen(file : UploadFile = File(), perspective : str = Form("w"), nex
     
 @app.post('/getReview')
 async def getReview(file_upload: FileUpload):  
+    # this function returns text based and overall review of the game by taking base64 encoded pgn file as input
     print(os.getcwd())
     print("call recieved")
 
